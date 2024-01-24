@@ -1,72 +1,79 @@
-import { useDispatch, useSelector } from 'react-redux';
-import { nanoid } from 'nanoid';
-import { selectContacts } from 'redux/selectors';
-import { addContact } from '../../redux/operations';
+import { useSelector, useDispatch } from 'react-redux';
+
+import PropTypes from 'prop-types';
+
+import { selectContactsList } from 'redux/constacts/selectors';
+import { addContact } from 'redux/constacts/operations';
+
+import { Form, Input, Label, Button, AddUserIcon } from './ContactForm.module';
 import { Notify } from 'notiflix';
-import css from './ContactForm.module.css';
 
-const ContactForm = () => {
+export const ContactForm = ({ onCloseModal }) => {
   const dispatch = useDispatch();
-  const contacts = useSelector(selectContacts);
+  const contacts = useSelector(selectContactsList);
 
-  const handleSubmit = event => {
-    event.preventDefault();
-    const form = event.target;
+  const handleSubmit = e => {
+    e.preventDefault();
 
-    let isContact;
-    contacts.forEach(person => {
-      if (form.name.value.toLowerCase() === person.name.toLowerCase()) {
-        isContact = true;
-      }
-    });
-    isContact
-      ? Notify.warning(`${form.name.value} is already in your Contacts.`, {
-          timeout: 3000,
-          position: 'left-top',
-          closeButton: true,
-        })
-      : dispatch(
-          addContact({
-            id: nanoid(),
-            name: form.name.value,
-            phone: form.phone.value,
-          })
+    const form = e.target;
+    const formName = e.target.elements.name.value;
+    const formNumber = e.target.elements.number.value;
+    if (contacts.some(({ name }) => name === formName)) {
+      return alert(`${formName} is already in contacts`);
+    }
+
+    if (contacts.some(({ number }) => number === formNumber)) {
+      return alert(`${formNumber} is already in contacts`);
+    }
+
+    dispatch(addContact({ name: formName, number: formNumber.toString() }))
+      .unwrap()
+      .then(originalPromiseResult => {
+        Notify.success(
+          `${originalPromiseResult.name} successfully added to contacts`
         );
+      })
+      .catch(() => {
+        Notify.failure("Sorry, something's wrong");
+      });
+
+    onCloseModal();
     form.reset();
   };
 
-  const nameInputId = nanoid();
-  const numberInputId = nanoid();
-
   return (
-    <form className={css.formBox} onSubmit={handleSubmit}>
-      <label htmlFor={nameInputId}>Name</label>
-      <input
-        id={nameInputId}
-        type="text"
-        name="name"
-        className={css.inputName}
-        placeholder="Enter contact's name"
-        pattern="^[a-zA-Zа-яА-Я\u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u00D3\u00F3\u015A\u015B\u0179\u017A\u017B\u017C]+(([' \-][a-zA-Zа-яА-Я \u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u00D3\u00F3\u015A\u015B\u0179\u017A\u017B\u017C])?[a-zA-Zа-яА-Я \u0104\u0105\u0106\u0107\u0118\u0119\u0141\u0142\u0143\u0144\u00D3\u00F3\u015A\u015B\u0179\u017A\u017B\u017C]*)*$"
-        title="Name may contain only letters, apostrophe, dash and spaces. For example Adrian, Jacob Mercer, Charles de Batz de Castelmore d'Artagnan"
-        required
-      />
-      <label htmlFor={numberInputId}>Number</label>
-      <input
-        id={numberInputId}
-        type="tel"
-        name="phone"
-        className={css.inputName}
-        placeholder="Enter contact's number"
-        pattern="\+?\d{1,4}?[\-.\s]?\(?\d{1,3}?\)?[\-.\s]?\d{1,4}[\-.\s]?\d{1,4}[\-.\s]?\d{1,9}"
-        title="Phone number must be digits and can contain spaces, dashes, parentheses and can start with +"
-        required
-      />
-      <button type="submit" className={css.btn} name="submit">
-        Add contact
-      </button>
-    </form>
+    <Form onSubmit={handleSubmit} autoComplete="off">
+      <Label>
+        Name
+        <Input
+          type="text"
+          name="name"
+          pattern="^[a-zA-Zа-яА-Я]+(([' -][a-zA-Zа-яА-Я ])?[a-zA-Zа-яА-Я]*)*$"
+          title="Name may contain only letters, apostrophe, dash and spaces. For example Adrian, Jacob Mercer, Charles de Batz de Castelmore d'Artagnan"
+          required
+          placeholder="Enter name ..."
+          value={contacts.name}
+        />
+      </Label>
+      <Label>
+        Number
+        <Input
+          type="tel"
+          name="number"
+          pattern="\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}"
+          title="Phone number must be digits and can contain spaces, dashes, parentheses and can start with +"
+          placeholder="Enter number ..."
+          value={contacts.number}
+        />
+      </Label>
+      <Button type="submit">
+        <AddUserIcon />
+        New contact
+      </Button>
+    </Form>
   );
 };
 
-export default ContactForm;
+ContactForm.propTypes = {
+  onCloseModal: PropTypes.func.isRequired,
+};
